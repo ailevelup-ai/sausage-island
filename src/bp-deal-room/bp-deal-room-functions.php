@@ -105,6 +105,32 @@ function bp_deal_room_get_document_types() {
 }
 
 /**
+ * Get Level 5 sections.
+ *
+ * @since BuddyBoss 1.0.0
+ *
+ * @return array Array of Level 5 sections.
+ */
+function bp_deal_room_get_level5_sections() {
+	$sections = array(
+		'sudoself'         => __( 'SudoSelf', 'buddyboss' ),
+		'bizbox'           => __( 'BizBox', 'buddyboss' ),
+		'level5_podcast'   => __( 'Level 5 Podcast', 'buddyboss' ),
+		'sausage_software' => __( 'Sausage Software', 'buddyboss' ),
+		'trillion_club'    => __( 'Trillion Club', 'buddyboss' ),
+	);
+
+	/**
+	 * Filter Level 5 sections.
+	 *
+	 * @since BuddyBoss 1.0.0
+	 *
+	 * @param array $sections Array of sections.
+	 */
+	return apply_filters( 'bp_deal_room_level5_sections', $sections );
+}
+
+/**
  * Create Deal Room tables on activation.
  *
  * @since BuddyBoss 1.0.0
@@ -134,6 +160,7 @@ function bp_deal_room_create_tables() {
 	$sql = "CREATE TABLE IF NOT EXISTS {$bp->deal_room->table_name_documents} (
 		id bigint(20) NOT NULL AUTO_INCREMENT,
 		room_id bigint(20) NOT NULL,
+		section varchar(50) DEFAULT NULL,
 		document_type varchar(50) NOT NULL,
 		document_id bigint(20) NOT NULL,
 		title varchar(255) NOT NULL,
@@ -143,6 +170,7 @@ function bp_deal_room_create_tables() {
 		date_uploaded datetime NOT NULL default '0000-00-00 00:00:00',
 		PRIMARY KEY (id),
 		KEY room_id (room_id),
+		KEY section (section),
 		KEY document_type (document_type),
 		KEY uploaded_by (uploaded_by),
 		KEY date_uploaded (date_uploaded)
@@ -193,18 +221,28 @@ function bp_deal_room_add_investor_role() {
 function bp_deal_room_create_default_groups() {
 	$groups = array(
 		array(
-			'name'        => 'Level 5',
-			'description' => 'Level 5 community group',
+			'name'        => 'SudoSelf',
+			'description' => 'SudoSelf community - Self-improvement and personal development',
 			'status'      => 'private',
 		),
 		array(
 			'name'        => 'BizBox',
-			'description' => 'BizBox community group',
+			'description' => 'BizBox community - Business tools and resources',
 			'status'      => 'private',
 		),
 		array(
-			'name'        => 'SudoSelf',
-			'description' => 'SudoSelf community group',
+			'name'        => 'Level 5 Podcast',
+			'description' => 'Level 5 Podcast community - Podcast discussions and content',
+			'status'      => 'private',
+		),
+		array(
+			'name'        => 'Sausage Software',
+			'description' => 'Sausage Software community - Software development and tech',
+			'status'      => 'private',
+		),
+		array(
+			'name'        => 'Trillion Club',
+			'description' => 'Trillion Club - Exclusive high-growth entrepreneurs',
 			'status'      => 'private',
 		),
 	);
@@ -242,8 +280,8 @@ function bp_deal_room_screen() {
 function bp_deal_room_screen_content() {
 	?>
 	<div class="bp-deal-room">
-		<h2><?php esc_html_e( 'Deal Room', 'buddyboss' ); ?></h2>
-		<p><?php esc_html_e( 'Secure document repository for investors.', 'buddyboss' ); ?></p>
+		<h2><?php esc_html_e( 'Level 5 Deal Room', 'buddyboss' ); ?></h2>
+		<p><?php esc_html_e( 'Secure document repository for Level 5 investors and partners.', 'buddyboss' ); ?></p>
 
 		<div class="deal-room-sections">
 			<?php
