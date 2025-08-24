@@ -639,6 +639,7 @@ class BuddyPress {
 			'suspend',
 			'invites',
 			'moderation',
+			'deal-room',
 		);
 
 		// These classes don't have a name that matches their component.
