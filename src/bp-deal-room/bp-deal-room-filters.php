@@ -125,6 +125,17 @@ function bp_deal_room_handle_upload() {
 	);
 
 	$wpdb->insert( $bp->deal_room->table_name_documents, $data );
+	$document_id = $wpdb->insert_id;
+
+	// Send email notifications if enabled.
+	if ( 'yes' === get_option( 'bp_deal_room_email_notifications', 'yes' ) ) {
+		bp_deal_room_send_upload_notification( $document_id, $data );
+	}
+
+	// Add to activity stream.
+	if ( bp_is_active( 'activity' ) ) {
+		bp_deal_room_add_upload_activity( $document_id, $data );
+	}
 
 	wp_send_json_success( array( 'message' => __( 'Document uploaded successfully.', 'buddyboss' ) ) );
 }
@@ -181,4 +192,107 @@ function bp_deal_room_handle_delete() {
 	);
 
 	wp_send_json_success( array( 'message' => __( 'Document deleted successfully.', 'buddyboss' ) ) );
+}
+
+/**
+ * Handle AJAX document loading.
+ */
+add_action( 'wp_ajax_bp_deal_room_load_documents', 'bp_deal_room_load_documents' );
+
+/**
+ * Load documents via AJAX.
+ *
+ * @since BuddyBoss 1.0.0
+ */
+function bp_deal_room_load_documents() {
+	// Check nonce.
+	check_ajax_referer( 'bp-deal-room', 'nonce' );
+
+	// Check access.
+	if ( ! bp_deal_room_user_has_access() ) {
+		wp_die( __( 'Access denied.', 'buddyboss' ) );
+	}
+
+	$document_type = isset( $_POST['document_type'] ) ? sanitize_key( $_POST['document_type'] ) : '';
+	$section = isset( $_POST['section'] ) ? sanitize_key( $_POST['section'] ) : '';
+
+	global $wpdb;
+	$bp = buddypress();
+
+	// Build query.
+	$where = array( '1=1' );
+	if ( ! empty( $document_type ) ) {
+		$where[] = $wpdb->prepare( 'document_type = %s', $document_type );
+	}
+	if ( ! empty( $section ) ) {
+		$where[] = $wpdb->prepare( 'section = %s', $section );
+	}
+
+	$documents = $wpdb->get_results(
+		"SELECT * FROM {$bp->deal_room->table_name_documents} 
+		WHERE " . implode( ' AND ', $where ) . " 
+		ORDER BY date_uploaded DESC"
+	);
+
+	ob_start();
+	if ( ! empty( $documents ) ) {
+		foreach ( $documents as $document ) {
+			bp_deal_room_display_document( $document );
+		}
+	} else {
+		echo '<p class="no-documents">' . esc_html__( 'No documents found.', 'buddyboss' ) . '</p>';
+	}
+	$html = ob_get_clean();
+
+	wp_send_json_success( array( 'html' => $html ) );
+}
+
+/**
+ * Enqueue Deal Room scripts and styles.
+ */
+add_action( 'bp_enqueue_scripts', 'bp_deal_room_enqueue_scripts' );
+
+/**
+ * Enqueue scripts and styles for Deal Room.
+ *
+ * @since BuddyBoss 1.0.0
+ */
+function bp_deal_room_enqueue_scripts() {
+	if ( ! bp_is_deal_room_component() ) {
+		return;
+	}
+
+	$min = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+
+	// Enqueue CSS.
+	wp_enqueue_style(
+		'bp-deal-room',
+		plugins_url( 'css/deal-room.css', dirname( __FILE__ ) ),
+		array(),
+		bp_get_version()
+	);
+
+	// Enqueue JavaScript.
+	wp_enqueue_script(
+		'bp-deal-room',
+		plugins_url( 'js/deal-room.js', dirname( __FILE__ ) ),
+		array( 'jquery' ),
+		bp_get_version(),
+		true
+	);
+
+	// Localize script.
+	wp_localize_script(
+		'bp-deal-room',
+		'BP_Deal_Room_Vars',
+		array(
+			'ajax_url'            => admin_url( 'admin-ajax.php' ),
+			'nonce'               => wp_create_nonce( 'bp-deal-room' ),
+			'delete_nonce'        => wp_create_nonce( 'bp-deal-room-delete' ),
+			'uploading_text'      => __( 'Uploading...', 'buddyboss' ),
+			'error_text'          => __( 'An error occurred. Please try again.', 'buddyboss' ),
+			'no_documents_text'   => __( 'No documents found.', 'buddyboss' ),
+			'confirm_delete_text' => __( 'Are you sure you want to delete this document?', 'buddyboss' ),
+		)
+	);
 }

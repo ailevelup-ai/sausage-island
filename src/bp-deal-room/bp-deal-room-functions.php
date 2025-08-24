@@ -304,3 +304,167 @@ function bp_deal_room_screen_content() {
 	</div>
 	<?php
 }
+
+/**
+ * Send email notification for document upload.
+ *
+ * @since BuddyBoss 1.0.0
+ *
+ * @param int   $document_id Document ID.
+ * @param array $document_data Document data.
+ */
+function bp_deal_room_send_upload_notification( $document_id, $document_data ) {
+	// Get all users with access.
+	$users = bp_deal_room_get_users_with_access();
+	
+	// Get uploader info.
+	$uploader = get_user_by( 'id', $document_data['uploaded_by'] );
+	$uploader_name = $uploader ? $uploader->display_name : __( 'Someone', 'buddyboss' );
+	
+	// Get document type label.
+	$document_types = bp_deal_room_get_document_types();
+	$document_type_label = isset( $document_types[ $document_data['document_type'] ] ) 
+		? $document_types[ $document_data['document_type'] ] 
+		: $document_data['document_type'];
+	
+	// Get section label.
+	$section_label = '';
+	if ( ! empty( $document_data['section'] ) ) {
+		$sections = bp_deal_room_get_level5_sections();
+		$section_label = isset( $sections[ $document_data['section'] ] ) 
+			? $sections[ $document_data['section'] ] 
+			: $document_data['section'];
+	}
+	
+	// Email subject and message.
+	$subject = sprintf( __( '[Level 5] New %s Uploaded', 'buddyboss' ), $document_type_label );
+	
+	$message = sprintf(
+		__( 'Hello,
+
+%1$s has uploaded a new document to the Level 5 Deal Room:
+
+Document: %2$s
+Type: %3$s
+%4$s
+
+To view this document, please visit the Deal Room.
+
+Best regards,
+Level 5 Team', 'buddyboss' ),
+		$uploader_name,
+		$document_data['title'],
+		$document_type_label,
+		$section_label ? sprintf( __( 'Section: %s', 'buddyboss' ), $section_label ) : ''
+	);
+	
+	// Send to each user with access.
+	foreach ( $users as $user_id ) {
+		// Don't send to uploader.
+		if ( $user_id == $document_data['uploaded_by'] ) {
+			continue;
+		}
+		
+		$user = get_user_by( 'id', $user_id );
+		if ( $user && ! empty( $user->user_email ) ) {
+			wp_mail( $user->user_email, $subject, $message );
+		}
+	}
+}
+
+/**
+ * Get all users with Deal Room access.
+ *
+ * @since BuddyBoss 1.0.0
+ *
+ * @return array Array of user IDs.
+ */
+function bp_deal_room_get_users_with_access() {
+	$users = array();
+	
+	// Get users with investor role.
+	$investors = get_users( array(
+		'role'   => 'investor',
+		'fields' => 'ID',
+	) );
+	$users = array_merge( $users, $investors );
+	
+	// Get users from access list.
+	$access_list = get_option( 'bp_deal_room_access_list', array() );
+	$users = array_merge( $users, $access_list );
+	
+	// Get administrators.
+	$admins = get_users( array(
+		'role'   => 'administrator',
+		'fields' => 'ID',
+	) );
+	$users = array_merge( $users, $admins );
+	
+	// Remove duplicates.
+	return array_unique( $users );
+}
+
+/**
+ * Add document upload to activity stream.
+ *
+ * @since BuddyBoss 1.0.0
+ *
+ * @param int   $document_id Document ID.
+ * @param array $document_data Document data.
+ */
+function bp_deal_room_add_upload_activity( $document_id, $document_data ) {
+	if ( ! bp_is_active( 'activity' ) ) {
+		return;
+	}
+	
+	// Get document type label.
+	$document_types = bp_deal_room_get_document_types();
+	$document_type_label = isset( $document_types[ $document_data['document_type'] ] ) 
+		? $document_types[ $document_data['document_type'] ] 
+		: $document_data['document_type'];
+	
+	// Get section label.
+	$section_label = '';
+	if ( ! empty( $document_data['section'] ) ) {
+		$sections = bp_deal_room_get_level5_sections();
+		$section_label = isset( $sections[ $document_data['section'] ] ) 
+			? ' for ' . $sections[ $document_data['section'] ] 
+			: '';
+	}
+	
+	// Activity action.
+	$action = sprintf(
+		__( '%1$s uploaded a new %2$s to Level 5 Deal Room%3$s', 'buddyboss' ),
+		bp_core_get_userlink( $document_data['uploaded_by'] ),
+		strtolower( $document_type_label ),
+		$section_label
+	);
+	
+	// Activity content.
+	$content = sprintf(
+		'<div class="deal-room-activity">
+			<h4>%1$s</h4>
+			%2$s
+			<p class="activity-deal-room-meta">
+				<span class="activity-deal-room-type">%3$s</span>
+			</p>
+		</div>',
+		esc_html( $document_data['title'] ),
+		! empty( $document_data['description'] ) ? '<p>' . esc_html( $document_data['description'] ) . '</p>' : '',
+		esc_html( $document_type_label )
+	);
+	
+	// Add activity.
+	bp_activity_add( array(
+		'user_id'           => $document_data['uploaded_by'],
+		'action'            => $action,
+		'content'           => $content,
+		'primary_link'      => bp_core_get_user_domain( $document_data['uploaded_by'] ) . bp_get_deal_room_slug() . '/',
+		'component'         => 'deal_room',
+		'type'              => 'deal_room_upload',
+		'item_id'           => $document_id,
+		'secondary_item_id' => 0,
+		'recorded_time'     => bp_core_current_time(),
+		'hide_sitewide'     => false,
+	) );
+}

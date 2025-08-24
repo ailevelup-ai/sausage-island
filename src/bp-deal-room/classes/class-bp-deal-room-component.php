@@ -45,7 +45,13 @@ class BP_Deal_Room_Component extends BP_Component {
 			'template',
 			'filters',
 			'settings',
+			'screens/index',
 		);
+
+		// Include admin files if in admin.
+		if ( is_admin() ) {
+			$includes[] = 'admin/bp-deal-room-admin';
+		}
 
 		parent::includes( $includes );
 	}
@@ -106,7 +112,7 @@ class BP_Deal_Room_Component extends BP_Component {
 			'name'                => __( 'Deal Room', 'buddyboss' ),
 			'slug'                => bp_get_deal_room_slug(),
 			'position'            => 80,
-			'screen_function'     => 'bp_deal_room_screen',
+			'screen_function'     => 'bp_deal_room_screen_index',
 			'default_subnav_slug' => 'documents',
 			'item_css_id'         => $this->id,
 		);

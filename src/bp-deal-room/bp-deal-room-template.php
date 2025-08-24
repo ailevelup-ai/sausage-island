@@ -96,3 +96,59 @@ function bp_deal_room_display_document( $document ) {
 	</div>
 	<?php
 }
+
+/**
+ * Get document count for a section.
+ *
+ * @since BuddyBoss 1.0.0
+ *
+ * @param string $section Section key.
+ * @return int Document count.
+ */
+function bp_deal_room_get_document_count( $section = '' ) {
+	global $wpdb;
+	$bp = buddypress();
+
+	if ( ! isset( $bp->deal_room->table_name_documents ) ) {
+		return 0;
+	}
+
+	if ( empty( $section ) ) {
+		$count = $wpdb->get_var( "SELECT COUNT(*) FROM {$bp->deal_room->table_name_documents}" );
+	} else {
+		$count = $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$bp->deal_room->table_name_documents} WHERE section = %s",
+			$section
+		) );
+	}
+
+	return intval( $count );
+}
+
+/**
+ * Add Deal Room template hooks.
+ *
+ * @since BuddyBoss 1.0.0
+ */
+function bp_nouveau_before_deal_room_content() {
+	/**
+	 * Fires before Deal Room content.
+	 *
+	 * @since BuddyBoss 1.0.0
+	 */
+	do_action( 'bp_before_deal_room_content' );
+}
+
+/**
+ * After Deal Room content hook.
+ *
+ * @since BuddyBoss 1.0.0
+ */
+function bp_nouveau_after_deal_room_content() {
+	/**
+	 * Fires after Deal Room content.
+	 *
+	 * @since BuddyBoss 1.0.0
+	 */
+	do_action( 'bp_after_deal_room_content' );
+}
